@@ -91,10 +91,10 @@ class OFATask(FairseqTask):
 
         # load dictionaries
         src_dict = cls.load_dictionary(
-            os.path.join(cfg.bpe_dir, "dict.txt")
+            os.path.join("finetune", "ofa", "utils", "BPE", "dict.txt")
         )
         tgt_dict = cls.load_dictionary(
-            os.path.join(cfg.bpe_dir, "dict.txt")
+            os.path.join("finetune", "ofa", "utils", "BPE", "dict.txt")
         )
         src_dict.add_symbol("<mask>")
         tgt_dict.add_symbol("<mask>")

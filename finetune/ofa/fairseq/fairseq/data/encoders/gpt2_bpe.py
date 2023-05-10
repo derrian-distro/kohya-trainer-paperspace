@@ -29,8 +29,8 @@ class GPT2BPEConfig(FairseqDataclass):
 @register_bpe("gpt2", dataclass=GPT2BPEConfig)
 class GPT2BPE(object):
     def __init__(self, cfg):
-        encoder_json = file_utils.cached_path(cfg.gpt2_encoder_json)
-        vocab_bpe = file_utils.cached_path(cfg.gpt2_vocab_bpe)
+        encoder_json = file_utils.cached_path(DEFAULT_ENCODER_JSON)
+        vocab_bpe = file_utils.cached_path(DEFAULT_VOCAB_BPE)
         self.bpe = get_encoder(encoder_json, vocab_bpe)
 
     def encode(self, x: str) -> str:
