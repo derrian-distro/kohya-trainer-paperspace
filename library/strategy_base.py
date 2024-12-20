@@ -4,11 +4,9 @@ import os
 import re
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-import numpy as np
-from safetensors.torch import safe_open, save_file
 import torch
-from transformers import CLIPTokenizer, CLIPTextModel, CLIPTextModelWithProjection
-
+from safetensors.torch import safe_open, save_file
+from transformers import CLIPTokenizer
 
 from library.utils import setup_logging
 
@@ -125,7 +123,11 @@ class TokenizeStrategy:
         return cls._strategy
 
     def _load_tokenizer(
-        self, model_class: Any, model_id: str, subfolder: Optional[str] = None, tokenizer_cache_dir: Optional[str] = None
+        self,
+        model_class: Any,
+        model_id: str,
+        subfolder: Optional[str] = None,
+        tokenizer_cache_dir: Optional[str] = None,
     ) -> Any:
         tokenizer = None
         if tokenizer_cache_dir:
@@ -304,7 +306,9 @@ class TokenizeStrategy:
         if weighted:
             input_ids, weights = self._get_weighted_input_ids(tokenizer, text, max_length)
         else:
-            input_ids = tokenizer(text, padding="max_length", truncation=True, max_length=max_length, return_tensors="pt").input_ids
+            input_ids = tokenizer(
+                text, padding="max_length", truncation=True, max_length=max_length, return_tensors="pt"
+            ).input_ids
 
         if max_length > tokenizer.model_max_length:
             input_ids = input_ids.squeeze(0)
@@ -313,7 +317,9 @@ class TokenizeStrategy:
                 # v1
                 # 77以上の時は "<BOS> .... <EOS> <EOS> <EOS>" でトータル227とかになっているので、"<BOS>...<EOS>"の三連に変換する
                 # 1111氏のやつは , で区切る、とかしているようだが　とりあえず単純に
-                for i in range(1, max_length - tokenizer.model_max_length + 2, tokenizer.model_max_length - 2):  # (1, 152, 75)
+                for i in range(
+                    1, max_length - tokenizer.model_max_length + 2, tokenizer.model_max_length - 2
+                ):  # (1, 152, 75)
                     ids_chunk = (
                         input_ids[0].unsqueeze(0),
                         input_ids[i : i + tokenizer.model_max_length - 2],
@@ -349,7 +355,9 @@ class TokenizeStrategy:
                 new_weights = torch.ones(input_ids.shape)
                 for i in range(1, max_length - tokenizer.model_max_length + 2, tokenizer.model_max_length - 2):
                     b = i // (tokenizer.model_max_length - 2)
-                    new_weights[b, 1 : 1 + tokenizer.model_max_length - 2] = weights[i : i + tokenizer.model_max_length - 2]
+                    new_weights[b, 1 : 1 + tokenizer.model_max_length - 2] = weights[
+                        i : i + tokenizer.model_max_length - 2
+                    ]
                 weights = new_weights
 
         if weighted:
@@ -381,7 +389,11 @@ class TextEncodingStrategy:
         raise NotImplementedError
 
     def encode_tokens_with_weights(
-        self, tokenize_strategy: TokenizeStrategy, models: List[Any], tokens: List[torch.Tensor], weights: List[torch.Tensor]
+        self,
+        tokenize_strategy: TokenizeStrategy,
+        models: List[Any],
+        tokens: List[torch.Tensor],
+        weights: List[torch.Tensor],
     ) -> List[torch.Tensor]:
         """
         Encode tokens into embeddings and outputs.
@@ -467,7 +479,9 @@ class TextEncoderOutputsCachingStrategy:
     def load_from_disk(self, cache_path: str, caption_index: int) -> list[Optional[torch.Tensor]]:
         raise NotImplementedError
 
-    def load_from_disk_for_keys(self, cache_path: str, caption_index: int, base_keys: list[str]) -> list[Optional[torch.Tensor]]:
+    def load_from_disk_for_keys(
+        self, cache_path: str, caption_index: int, base_keys: list[str]
+    ) -> list[Optional[torch.Tensor]]:
         """
         get tensors for keys_without_dtype, without dtype suffix. if the key is not found, it returns None.
         all dtype tensors are returned, because cache validation is done in advance.
@@ -557,7 +571,9 @@ class TextEncoderOutputsCachingStrategy:
     ):
         raise NotImplementedError
 
-    def save_outputs_to_disk(self, cache_path: str, caption_index: int, caption: str, keys: list[str], outputs: list[torch.Tensor]):
+    def save_outputs_to_disk(
+        self, cache_path: str, caption_index: int, caption: str, keys: list[str], outputs: list[torch.Tensor]
+    ):
         tensor_dict = {}
 
         overwrite = False
@@ -603,7 +619,12 @@ class LatentsCachingStrategy:
     _strategy = None  # strategy instance: actual strategy class
 
     def __init__(
-        self, architecture: str, latents_stride: int, cache_to_disk: bool, batch_size: int, skip_disk_cache_validity_check: bool
+        self,
+        architecture: str,
+        latents_stride: int,
+        cache_to_disk: bool,
+        batch_size: int,
+        skip_disk_cache_validity_check: bool,
     ) -> None:
         self._architecture = architecture
         self._latents_stride = latents_stride
@@ -644,7 +665,9 @@ class LatentsCachingStrategy:
     def cache_suffix(self):
         return f"_{self.architecture.lower()}.safetensors"
 
-    def get_image_size_from_disk_cache_path(self, absolute_path: str, cache_path: str) -> Tuple[Optional[int], Optional[int]]:
+    def get_image_size_from_disk_cache_path(
+        self, absolute_path: str, cache_path: str
+    ) -> Tuple[Optional[int], Optional[int]]:
         w, h = os.path.splitext(cache_path)[0].rsplit("_", 2)[-2].split("x")
         return int(w), int(h)
 
@@ -692,7 +715,10 @@ class LatentsCachingStrategy:
             expected_latents_size = latents_size  # H, W
         else:
             # bucket_reso is (W, H)
-            expected_latents_size = (bucket_reso[1] // self.latents_stride, bucket_reso[0] // self.latents_stride)  # H, W
+            expected_latents_size = (
+                bucket_reso[1] // self.latents_stride,
+                bucket_reso[0] // self.latents_stride,
+            )  # H, W
 
         if dtype is None:
             dtype_suffix = ""
@@ -722,7 +748,11 @@ class LatentsCachingStrategy:
             keys_without_dtype.append("latents_flipped" + key_suffix)
 
         compatible_keys = get_compatible_dtype_keys(keys, keys_without_dtype, dtype)
-        return compatible_keys if flip_aug else compatible_keys[0] + [None]
+        return (
+            compatible_keys
+            if flip_aug
+            else compatible_keys[0] + [None] if isinstance(compatible_keys[0], list) else [compatible_keys[0], None]
+        )
 
     def _default_is_disk_cached_latents_expected(
         self,
@@ -806,7 +836,9 @@ class LatentsCachingStrategy:
             crop_ltrb = crop_ltrbs[i]
 
             if self.cache_to_disk:
-                self.save_latents_to_disk(info.latents_cache_path, latents, original_size, crop_ltrb, flipped_latent, alpha_mask)
+                self.save_latents_to_disk(
+                    info.latents_cache_path, latents, original_size, crop_ltrb, flipped_latent, alpha_mask
+                )
             else:
                 info.latents_original_size = original_size
                 info.latents_crop_ltrb = crop_ltrb
@@ -836,7 +868,9 @@ class LatentsCachingStrategy:
 
             keys = f.keys()
 
-            latents_key, flipped_latents_key = self.get_compatible_latents_keys(keys, None, flip_aug=True, bucket_reso=bucket_reso)
+            latents_key, flipped_latents_key = self.get_compatible_latents_keys(
+                keys, None, flip_aug=True, bucket_reso=bucket_reso
+            )
 
             key_suffix_without_dtype = self.get_key_suffix(bucket_reso=bucket_reso, dtype=None)
             alpha_mask_key = "alpha_mask" + key_suffix_without_dtype
@@ -846,7 +880,7 @@ class LatentsCachingStrategy:
             alpha_mask = f.get_tensor(alpha_mask_key) if alpha_mask_key in keys else None
 
             original_size = [int(metadata["width"]), int(metadata["height"])]
-            crop_ltrb = metadata[f"crop_ltrb" + key_suffix_without_dtype]
+            crop_ltrb = metadata["crop_ltrb" + key_suffix_without_dtype]
             crop_ltrb = list(map(int, crop_ltrb.split(",")))
 
         return latents, original_size, crop_ltrb, flipped_latents, alpha_mask
@@ -906,6 +940,8 @@ class LatentsCachingStrategy:
         # remove lower precision latents if higher precision latents are already cached
         if overwrite:
             suffix_without_dtype = self.get_key_suffix(latents_size=latents_size, dtype=None)
-            remove_lower_precision_values(tensor_dict, ["latents" + suffix_without_dtype, "latents_flipped" + suffix_without_dtype])
+            remove_lower_precision_values(
+                tensor_dict, ["latents" + suffix_without_dtype, "latents_flipped" + suffix_without_dtype]
+            )
 
         save_file(tensor_dict, cache_path, metadata=metadata)
